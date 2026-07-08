@@ -143,7 +143,7 @@ class TXTToExcelConverter:
     
     def count_lines_fast(self):
         """Cuenta las líneas del archivo de manera eficiente"""
-        print(" Contando líneas...")
+        print("📊 Contando líneas...")
         lines = 0
         buffer_size = 1024 * 1024  # 1MB buffer
         
@@ -155,10 +155,10 @@ class TXTToExcelConverter:
                 lines += chunk.count(b'\n')
         
         self.total_lines = lines
-        print(f" Total de líneas: {lines:,}")
+        print(f"📝 Total de líneas: {lines:,}")
         return lines
     
-    def process_chunk(self, chunk_data, sheet_name):
+    def process_chunk(self, chunk_data):
         """Procesa un chunk de datos y retorna un DataFrame"""
         try:
             # Limpiar datos
@@ -216,89 +216,136 @@ class TXTToExcelConverter:
         
         # Nombre del archivo de salida
         base_name = self.input_file.stem
+        # Limpiar nombre base para evitar caracteres especiales
+        base_name = re.sub(r'[^\w\-_]', '_', base_name)
         output_file = self.output_dir / f'CONVERTIDO_{base_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
         
-        print(f"\ Generando {num_sheets} hojas")
-        print(f" {lines_per_sheet:,} líneas por hoja")
-        print(f" Procesando en chunks de {self.chunk_size:,} líneas\n")
+        print(f"\n📊 Generando {num_sheets} hojas")
+        print(f"📊 {lines_per_sheet:,} líneas por hoja")
+        print(f"📊 Procesando en chunks de {self.chunk_size:,} líneas\n")
         
-        # Procesar y guardar
-        with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
-            current_sheet = 1
-            chunk_data = []
-            rows_written = 0
+        # Procesar y guardar usando openpyxl (CORREGIDO)
+        from openpyxl import load_workbook
+        from openpyxl.utils.dataframe import dataframe_to_rows
+        
+        # Crear un libro de trabajo temporal para manejar múltiples hojas
+        import tempfile
+        import os
+        
+        # Usar un archivo temporal para construir el Excel
+        temp_excel = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        temp_excel.close()
+        
+        # Crear el Excel con openpyxl directamente
+        from openpyxl import Workbook
+        
+        # Inicializar variables
+        current_sheet = 1
+        chunk_data = []
+        rows_written = 0
+        total_rows_processed = 0
+        
+        # Crear el libro de trabajo
+        wb = Workbook()
+        # Eliminar la hoja por defecto
+        wb.remove(wb.active)
+        
+        # Procesar el archivo
+        with open(self.input_file, 'r', encoding=self.encoding, errors='ignore') as f:
+            # Saltar encabezado si existe
+            if self.has_header:
+                f.readline()
+                if progress_callback:
+                    progress_callback(5, '📋 Encabezado omitido')
             
-            with open(self.input_file, 'r', encoding=self.encoding, errors='ignore') as f:
-                # Saltar encabezado si existe
-                if self.has_header:
-                    f.readline()
-                    if progress_callback:
-                        progress_callback(5, '📋 Encabezado omitido')
+            # Procesar líneas
+            for line_num, line in enumerate(f, 1):
+                # Limpiar línea
+                line = self.clean_value(line)
+                if not line:
+                    continue
                 
-                # Procesar líneas
-                for line_num, line in enumerate(f, 1):
-                    # Limpiar línea
-                    line = self.clean_value(line)
-                    if not line:
-                        continue
-                    
-                    parts_line = line.split(self.separator)
-                    
-                    # Asegurar número correcto de columnas
-                    if len(parts_line) < len(self.columns):
-                        parts_line.extend([''] * (len(self.columns) - len(parts_line)))
-                    elif len(parts_line) > len(self.columns):
-                        parts_line = parts_line[:len(self.columns)]
-                    
-                    chunk_data.append(parts_line)
-                    rows_written += 1
-                    
-                    # Procesar cuando se alcanza el chunk_size
-                    if len(chunk_data) >= self.chunk_size:
-                        df = self.process_chunk(chunk_data, f'Hoja_{current_sheet}')
-                        if df is not None:
-                            sheet_name = f'Hoja_{current_sheet}'
-                            
-                            # Si es la primera hoja, escribir con encabezado
-                            if current_sheet == 1 and not writer.sheets:
-                                df.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='')
-                            else:
-                                # Si la hoja ya existe, agregar sin encabezado
-                                if sheet_name in writer.sheets:
-                                    startrow = writer.sheets[sheet_name].max_row
-                                    df.to_excel(writer, sheet_name=sheet_name, index=False, 
-                                              na_rep='', startrow=startrow, header=False)
-                                else:
-                                    df.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='')
-                            
-                            if progress_callback:
-                                progress = min(95, (rows_written / self.total_lines) * 100)
-                                progress_callback(progress, f'📊 Hoja {current_sheet}: {rows_written:,} filas')
-                        
-                        chunk_data = []
-                        gc.collect()
-                    
-                    # Cambiar de hoja
-                    if rows_written >= lines_per_sheet and line_num < self.total_lines:
-                        current_sheet += 1
-                        rows_written = 0
-                        if progress_callback:
-                            progress = min(95, (current_sheet / num_sheets) * 100)
-                            progress_callback(progress, f'📄 Cambiando a Hoja {current_sheet}')
+                parts_line = line.split(self.separator)
                 
-                # Procesar datos restantes
-                if chunk_data:
-                    df = self.process_chunk(chunk_data, f'Hoja_{current_sheet}')
+                # Asegurar número correcto de columnas
+                if len(parts_line) < len(self.columns):
+                    parts_line.extend([''] * (len(self.columns) - len(parts_line)))
+                elif len(parts_line) > len(self.columns):
+                    parts_line = parts_line[:len(self.columns)]
+                
+                chunk_data.append(parts_line)
+                rows_written += 1
+                total_rows_processed += 1
+                
+                # Procesar cuando se alcanza el chunk_size
+                if len(chunk_data) >= self.chunk_size:
+                    df = self.process_chunk(chunk_data)
                     if df is not None:
                         sheet_name = f'Hoja_{current_sheet}'
-                        if sheet_name in writer.sheets:
-                            startrow = writer.sheets[sheet_name].max_row
-                            df.to_excel(writer, sheet_name=sheet_name, index=False, 
-                                      na_rep='', startrow=startrow, header=False)
+                        
+                        # Crear hoja si no existe
+                        if sheet_name not in wb.sheetnames:
+                            wb.create_sheet(sheet_name)
+                            ws = wb[sheet_name]
+                            # Escribir encabezados solo si es la primera hoja y tiene encabezado
+                            if current_sheet == 1 and self.has_header:
+                                for c, col in enumerate(df.columns, 1):
+                                    ws.cell(row=1, column=c, value=col)
+                                startrow = 2
+                            else:
+                                startrow = 1
                         else:
-                            df.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='')
+                            ws = wb[sheet_name]
+                            startrow = ws.max_row + 1
+                        
+                        # Escribir datos
+                        for r, row in enumerate(dataframe_to_rows(df, index=False, header=False), startrow):
+                            for c, value in enumerate(row, 1):
+                                ws.cell(row=r, column=c, value=value)
+                        
+                        if progress_callback:
+                            progress = min(95, (total_rows_processed / self.total_lines) * 100)
+                            progress_callback(progress, f'📊 Hoja {current_sheet}: {total_rows_processed:,} filas')
+                    
                     chunk_data = []
                     gc.collect()
+                
+                # Cambiar de hoja
+                if rows_written >= lines_per_sheet and line_num < self.total_lines:
+                    current_sheet += 1
+                    rows_written = 0
+                    if progress_callback:
+                        progress = min(95, (current_sheet / num_sheets) * 100)
+                        progress_callback(progress, f'📄 Cambiando a Hoja {current_sheet}')
+            
+            # Procesar datos restantes
+            if chunk_data:
+                df = self.process_chunk(chunk_data)
+                if df is not None:
+                    sheet_name = f'Hoja_{current_sheet}'
+                    
+                    if sheet_name not in wb.sheetnames:
+                        wb.create_sheet(sheet_name)
+                        ws = wb[sheet_name]
+                        if current_sheet == 1 and self.has_header:
+                            for c, col in enumerate(df.columns, 1):
+                                ws.cell(row=1, column=c, value=col)
+                            startrow = 2
+                        else:
+                            startrow = 1
+                    else:
+                        ws = wb[sheet_name]
+                        startrow = ws.max_row + 1
+                    
+                    for r, row in enumerate(dataframe_to_rows(df, index=False, header=False), startrow):
+                        for c, value in enumerate(row, 1):
+                            ws.cell(row=r, column=c, value=value)
+                chunk_data = []
+                gc.collect()
+        
+        # Guardar el archivo
+        wb.save(output_file)
+        wb.close()
         
         elapsed_time = time.time() - start_time
         
@@ -306,7 +353,7 @@ class TXTToExcelConverter:
         result = {
             'output_file': output_file,
             'total_lines': self.total_lines,
-            'num_sheets': len(writer.sheets) if hasattr(writer, 'sheets') else current_sheet,
+            'num_sheets': len(wb.sheetnames) if wb.sheetnames else current_sheet,
             'columns': len(self.columns),
             'time': elapsed_time,
             'file_size_mb': output_file.stat().st_size / (1024**2) if output_file.exists() else 0
