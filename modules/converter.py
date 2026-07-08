@@ -143,7 +143,7 @@ class TXTToExcelConverter:
     
     def count_lines_fast(self):
         """Cuenta las líneas del archivo de manera eficiente"""
-        print("📊 Contando líneas...")
+        print(" Contando líneas...")
         lines = 0
         buffer_size = 1024 * 1024  # 1MB buffer
         
@@ -155,7 +155,7 @@ class TXTToExcelConverter:
                 lines += chunk.count(b'\n')
         
         self.total_lines = lines
-        print(f"📝 Total de líneas: {lines:,}")
+        print(f" Total de líneas: {lines:,}")
         return lines
     
     def process_chunk(self, chunk_data, sheet_name):
@@ -218,9 +218,9 @@ class TXTToExcelConverter:
         base_name = self.input_file.stem
         output_file = self.output_dir / f'CONVERTIDO_{base_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
         
-        print(f"\n📊 Generando {num_sheets} hojas")
-        print(f"📊 {lines_per_sheet:,} líneas por hoja")
-        print(f"📊 Procesando en chunks de {self.chunk_size:,} líneas\n")
+        print(f"\ Generando {num_sheets} hojas")
+        print(f" {lines_per_sheet:,} líneas por hoja")
+        print(f" Procesando en chunks de {self.chunk_size:,} líneas\n")
         
         # Procesar y guardar
         with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:

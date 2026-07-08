@@ -32,7 +32,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main-header {
-        background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        background: linear-gradient(135deg,#1a73e8 0%, #0d47a1 100%);
         color: white;
         padding: 25px;
         border-radius: 12px;
@@ -43,6 +43,7 @@ st.markdown("""
         margin: 0;
         font-size: 2.5em;
         font-weight: 700;
+        color: #ffffff !important;
     }
     .main-header p {
         margin: 8px 0 0 0;
@@ -133,7 +134,7 @@ st.markdown("""
         color: #5f6368;
     }
     .stProgress > div {
-        background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        background: linear-gradient(135deg, #2ecc71 0%, #1b5e20 100%);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -144,7 +145,7 @@ st.markdown("""
 
 st.markdown("""
 <div class="main-header">
-    <h1>📊 Convertidor TXT → Excel</h1>
+    <h1> Convertidor TXT → Excel</h1>
     <p>Herramienta profesional para convertir archivos TXT a Excel con múltiples hojas</p>
     <p style="font-size:0.9em;margin-top:10px;opacity:0.8;">Soporte para archivos de 500MB+ | Desarrollado por: Yessly Poma de la Cruz</p>
 </div>
@@ -174,23 +175,23 @@ with st.sidebar:
     for dir_name in ['outputs', 'uploads']:
         Path(dir_name).mkdir(exist_ok=True)
     
-    st.write(f"📁 Uploads: `uploads/`")
-    st.write(f"📁 Outputs: `outputs/`")
+    st.write(f" Uploads: `uploads/`")
+    st.write(f" Outputs: `outputs/`")
     
     st.markdown("---")
-    st.markdown("### 📊 Estadísticas")
+    st.markdown("###  Estadísticas")
     
     output_files = list(Path("outputs").glob("*.xlsx"))
     total_size = sum(f.stat().st_size for f in output_files) if output_files else 0
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("📊 Excel", len(output_files))
+        st.metric(" Excel", len(output_files))
     with col2:
-        st.metric("💾 Total", format_size(total_size))
+        st.metric(" Total", format_size(total_size))
     
     st.markdown("---")
-    st.markdown("### 📋 Ayuda rápida")
+    st.markdown("### Ayuda rápida")
     st.info("""
     **1. Sube el archivo** (máx 1GB)
     **2. Configura opciones**
@@ -309,7 +310,7 @@ if uploaded_file is not None:
         st.markdown("### 🚀 Paso 3: Convertir")
         
         # Botón de conversión
-        if st.button("📊 CONVERTIR A EXCEL", use_container_width=True):
+        if st.button(" CONVERTIR A EXCEL", use_container_width=True):
             try:
                 # Configurar progreso
                 progress_bar = st.progress(0)
@@ -372,9 +373,9 @@ if uploaded_file is not None:
                 
                 st.markdown(f"""
                 <div class="success-box">
-                    <b>✅ ¡Conversión exitosa!</b><br>
-                    📁 Archivo: {output_file.name}<br>
-                    📊 Tamaño: {result['file_size_mb']:.2f} MB
+                    <b> ¡Conversión exitosa!</b><br>
+                     Archivo: {output_file.name}<br>
+                     Tamaño: {result['file_size_mb']:.2f} MB
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -390,7 +391,7 @@ if uploaded_file is not None:
                 
                 # Vista previa
                 st.markdown("---")
-                st.markdown("### 👀 Vista Previa (primeras 10 filas)")
+                st.markdown("### Vista Previa (primeras 10 filas)")
                 
                 try:
                     df_preview = pd.read_excel(output_file, sheet_name=0, nrows=10)
